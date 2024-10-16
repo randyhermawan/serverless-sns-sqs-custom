@@ -1,5 +1,3 @@
-import { JsonObject } from "type-fest";
-
 // Future work: Properly type the file
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -8,36 +6,6 @@ import { JsonObject } from "type-fest";
  * A regular expression that matches AWS KMS arns
  */
 const kmsArnRegex = /^arn:aws:kms:.*:.*:key\/.+$/;
-
-/**
- * Defines the structure of the config object
- * that is passed to the main functions to
- * generate the Serverless template.
- */
-type Config = {
-  name: string;
-  topicArn: string;
-  funcName: string;
-  prefix: string;
-  batchSize: number;
-  maximumBatchingWindowInSeconds: number;
-  maxRetryCount: number;
-  kmsMasterKeyId: string;
-  kmsDataKeyReusePeriodSeconds: number;
-  deadLetterMessageRetentionPeriodSeconds: number;
-  deadLetterQueueEnabled: boolean;
-  enabled: boolean;
-  fifo: boolean;
-  visibilityTimeout: number;
-  rawMessageDelivery: boolean;
-  filterPolicy: any;
-  readonly omitPhysicalId: boolean;
-
-  mainQueueOverride: JsonObject;
-  deadLetterQueueOverride: JsonObject;
-  eventSourceMappingOverride: JsonObject;
-  subscriptionOverride: JsonObject;
-};
 
 /**
  * Parse a value into a number or set it to a default value.
@@ -62,19 +30,19 @@ const parseIntOr = (intString, defaultInt) => {
  *
  * @param {string} camelCase camelCase string
  */
-const pascalCase = (camelCase: string): string =>
+const pascalCase = (camelCase) =>
   camelCase.slice(0, 1).toUpperCase() + camelCase.slice(1);
 
-const pascalCaseAllKeys = (jsonObject: JsonObject): JsonObject =>
+const pascalCaseAllKeys = (jsonObject) =>
   Object.keys(jsonObject).reduce(
     (acc, key) => ({
       ...acc,
-      [pascalCase(key)]: jsonObject[key]
+      [pascalCase(key)]: jsonObject[key],
     }),
     {}
   );
 
-const validateQueueName = (queueName: string): string => {
+const validateQueueName = (queueName) => {
   if (queueName.length > 80) {
     throw new Error(
       `Generated queue name [${queueName}] is longer than 80 characters long and may be truncated by AWS, causing naming collisions. Try a shorter prefix or name, or try the hashQueueName config option.`
@@ -88,8 +56,7 @@ const validateQueueName = (queueName: string): string => {
  * @param possibleArn the candidate string
  * @returns true if the provided string looks like a KMS ARN, otherwise false
  */
-const isKmsArn = (possibleArn: string): boolean =>
-  kmsArnRegex.test(possibleArn);
+const isKmsArn = (possibleArn) => kmsArnRegex.test(possibleArn);
 
 /**
  * Adds a resource block to a template, ensuring uniqueness.
@@ -97,11 +64,7 @@ const isKmsArn = (possibleArn: string): boolean =>
  * @param logicalId the logical ID (resource key) for the resource
  * @param resourceDefinition the definition of the resource
  */
-const addResource = (
-  template: any,
-  logicalId: string,
-  resourceDefinition: Record<string, unknown>
-) => {
+const addResource = (template, logicalId, resourceDefinition) => {
   if (logicalId in template.Resources) {
     throw new Error(
       `Generated logical ID [${logicalId}] already exists in resources definition. Ensure that the snsSqs event definition has a unique name property.`
@@ -140,15 +103,7 @@ const addResource = (
  *                 - dog
  *                 - cat
  */
-export default class ServerlessSnsSqsLambda {
-  serverless: any;
-  options: any;
-  provider: any;
-  custom: any;
-  serviceName: string;
-  stage: string;
-  hooks: any;
-
+class ServerlessSnsSqsLambda {
   /**
    * @param {*} serverless
    * @param {*} options
@@ -170,7 +125,6 @@ export default class ServerlessSnsSqsLambda {
     serverless.configSchemaHandler.defineFunctionEvent("aws", "snsSqs", {
       type: "object",
       properties: {
-        name: { type: "string" },
         topicArn: { $ref: "#/definitions/awsArn" },
         prefix: { type: "string" },
         omitPhysicalId: { type: "boolean" },
@@ -178,26 +132,26 @@ export default class ServerlessSnsSqsLambda {
         maximumBatchingWindowInSeconds: {
           type: "number",
           minimum: 0,
-          maximum: 300
+          maximum: 300,
         },
         maxRetryCount: { type: "number" },
         kmsMasterKeyId: {
-          anyOf: [{ type: "string" }, { $ref: "#/definitions/awsArn" }]
+          anyOf: [{ type: "string" }, { $ref: "#/definitions/awsArn" }],
         },
         kmsDataKeyReusePeriodSeconds: {
           type: "number",
           minimum: 60,
-          maximum: 86400
+          maximum: 86400,
         },
         visibilityTimeout: {
           type: "number",
           minimum: 0,
-          maximum: 43200
+          maximum: 43200,
         },
         deadLetterMessageRetentionPeriodSeconds: {
           type: "number",
           minimum: 60,
-          maximum: 1209600
+          maximum: 1209600,
         },
         deadLetterQueueEnabled: { type: "boolean" },
         rawMessageDelivery: { type: "boolean" },
@@ -207,10 +161,10 @@ export default class ServerlessSnsSqsLambda {
         mainQueueOverride: { type: "object" },
         deadLetterQueueOverride: { type: "object" },
         eventSourceMappingOverride: { type: "object" },
-        subscriptionOverride: { type: "object" }
+        subscriptionOverride: { type: "object" },
       },
-      required: ["name", "topicArn"],
-      additionalProperties: false
+      required: ["topicArn"],
+      additionalProperties: false,
     });
 
     if (!this.provider) {
@@ -219,7 +173,7 @@ export default class ServerlessSnsSqsLambda {
 
     this.hooks = {
       "aws:package:finalize:mergeCustomProviderResources":
-        this.modifyTemplate.bind(this)
+        this.modifyTemplate.bind(this),
     };
   }
 
@@ -233,16 +187,16 @@ export default class ServerlessSnsSqsLambda {
     const template =
       this.serverless.service.provider.compiledCloudFormationTemplate;
 
-    Object.keys(functions).forEach(funcKey => {
+    Object.keys(functions).forEach((funcKey) => {
       const func = functions[funcKey];
       if (func.events) {
-        func.events.forEach(event => {
+        func.events.forEach((event) => {
           if (event.snsSqs) {
-            if (this.options.verbose) {
-              console.info(
-                `Adding snsSqs event handler [${JSON.stringify(event.snsSqs)}]`
-              );
-            }
+            // if (this.options.verbose) {
+            //   console.info(
+            //     `Adding snsSqs event handler [${JSON.stringify(event.snsSqs)}]`
+            //   );
+            // }
             this.addSnsSqsResources(
               template,
               funcKey,
@@ -266,13 +220,13 @@ export default class ServerlessSnsSqsLambda {
   addSnsSqsResources(template, funcName, stage, snsSqsConfig) {
     const config = this.validateConfig(funcName, stage, snsSqsConfig);
 
-    [
+    const seq = [
       this.addEventSourceMapping,
       this.addEventDeadLetterQueue,
       this.addEventQueue,
       this.addEventQueuePolicy,
       this.addTopicSubscription,
-      this.addLambdaSqsPermissions
+      // this.addLambdaSqsPermissions,
     ].reduce((template, func) => {
       func(template, config);
       return template;
@@ -289,12 +243,11 @@ export default class ServerlessSnsSqsLambda {
    * @param {object} config the configuration values from the snsSqs event
    *  portion of the serverless function config
    */
-  validateConfig(funcName, stage, config): Config {
+  validateConfig(funcName, stage, config) {
     if (!config.topicArn || !config.name) {
       throw new Error(`Error:
-When creating an snsSqs handler, you must define the name and topicArn.
+When creating an snsSqs handler, you must define topicArn.
 In function [${funcName}]:
-- name was [${config.name}]
 - topicArn was [${config.topicArn}].
 
 Usage
@@ -305,7 +258,6 @@ Usage
       handler: handler.handler
       events:
         - snsSqs:
-            name: Event                                      # required
             topicArn: !Ref TopicArn                          # required
             prefix: some-prefix                              # optional - default is \`\${this.serviceName}-\${stage}-\${funcNamePascalCase}\`
             maxRetryCount: 2                                 # optional - default is 5
@@ -348,10 +300,11 @@ Usage
     const funcNamePascalCase = pascalCase(funcName);
     return {
       ...config,
-      name: config.name,
+      name: `${funcNamePascalCase}${
+        config.topicArn.split(":")[config.topicArn.split(":").length - 1]
+      }`,
       funcName: funcNamePascalCase,
-      prefix:
-        config.prefix || `${this.serviceName}-${stage}-${funcNamePascalCase}`,
+      prefix: config.prefix || `${stage}-${this.serviceName}-`,
       batchSize: parseIntOr(config.batchSize, 10),
       maxRetryCount: parseIntOr(config.maxRetryCount, 5),
       kmsMasterKeyId: config.kmsMasterKeyId,
@@ -372,7 +325,7 @@ Usage
       mainQueueOverride: config.mainQueueOverride ?? {},
       deadLetterQueueOverride: config.deadLetterQueueOverride ?? {},
       eventSourceMappingOverride: config.eventSourceMappingOverride ?? {},
-      subscriptionOverride: config.subscriptionOverride ?? {}
+      subscriptionOverride: config.subscriptionOverride ?? {},
     };
   }
 
@@ -392,11 +345,11 @@ Usage
       batchSize,
       maximumBatchingWindowInSeconds,
       enabled,
-      eventSourceMappingOverride
-    }: Config
+      eventSourceMappingOverride,
+    }
   ) {
     const enabledWithDefault = enabled !== undefined ? enabled : true;
-    addResource(template, `${funcName}EventSourceMappingSQS${name}Queue`, {
+    addResource(template, `${name}EventSourceMapping`, {
       Type: "AWS::Lambda::EventSourceMapping",
       Properties: {
         BatchSize: batchSize,
@@ -407,8 +360,8 @@ Usage
         EventSourceArn: { "Fn::GetAtt": [`${name}Queue`, "Arn"] },
         FunctionName: { "Fn::GetAtt": [`${funcName}LambdaFunction`, "Arn"] },
         Enabled: enabledWithDefault ? "True" : "False",
-        ...pascalCaseAllKeys(eventSourceMappingOverride)
-      }
+        ...pascalCaseAllKeys(eventSourceMappingOverride),
+      },
     });
   }
 
@@ -431,15 +384,13 @@ Usage
       deadLetterMessageRetentionPeriodSeconds,
       deadLetterQueueOverride,
       deadLetterQueueEnabled,
-      omitPhysicalId
+      omitPhysicalId,
     }
   ) {
     if (!deadLetterQueueEnabled) {
       return;
     }
-    const candidateQueueName = `${prefix}${name}DeadLetterQueue${
-      fifo ? ".fifo" : ""
-    }`;
+    const candidateQueueName = `${prefix}${name}-DLQ${fifo ? ".fifo" : ""}`;
     addResource(template, `${name}DeadLetterQueue`, {
       Type: "AWS::SQS::Queue",
       Properties: {
@@ -449,21 +400,21 @@ Usage
         ...(fifo ? { FifoQueue: true } : {}),
         ...(kmsMasterKeyId !== undefined
           ? {
-              KmsMasterKeyId: kmsMasterKeyId
+              KmsMasterKeyId: kmsMasterKeyId,
             }
           : {}),
         ...(kmsDataKeyReusePeriodSeconds !== undefined
           ? {
-              KmsDataKeyReusePeriodSeconds: kmsDataKeyReusePeriodSeconds
+              KmsDataKeyReusePeriodSeconds: kmsDataKeyReusePeriodSeconds,
             }
           : {}),
         ...(deadLetterMessageRetentionPeriodSeconds !== undefined
           ? {
-              MessageRetentionPeriod: deadLetterMessageRetentionPeriodSeconds
+              MessageRetentionPeriod: deadLetterMessageRetentionPeriodSeconds,
             }
           : {}),
-        ...pascalCaseAllKeys(deadLetterQueueOverride)
-      }
+        ...pascalCaseAllKeys(deadLetterQueueOverride),
+      },
     });
   }
 
@@ -487,10 +438,10 @@ Usage
       visibilityTimeout,
       mainQueueOverride,
       omitPhysicalId,
-      deadLetterQueueEnabled
-    }: Config
+      deadLetterQueueEnabled,
+    }
   ) {
-    const candidateQueueName = `${prefix}${name}Queue${fifo ? ".fifo" : ""}`;
+    const candidateQueueName = `${prefix}${name}${fifo ? ".fifo" : ""}`;
     addResource(template, `${name}Queue`, {
       Type: "AWS::SQS::Queue",
       Properties: {
@@ -502,29 +453,29 @@ Usage
           ? {
               RedrivePolicy: {
                 deadLetterTargetArn: {
-                  "Fn::GetAtt": [`${name}DeadLetterQueue`, "Arn"]
+                  "Fn::GetAtt": [`${name}DeadLetterQueue`, "Arn"],
                 },
-                maxReceiveCount: maxRetryCount
-              }
+                maxReceiveCount: maxRetryCount,
+              },
             }
           : {}),
         ...(kmsMasterKeyId !== undefined
           ? {
-              KmsMasterKeyId: kmsMasterKeyId
+              KmsMasterKeyId: kmsMasterKeyId,
             }
           : {}),
         ...(kmsDataKeyReusePeriodSeconds !== undefined
           ? {
-              KmsDataKeyReusePeriodSeconds: kmsDataKeyReusePeriodSeconds
+              KmsDataKeyReusePeriodSeconds: kmsDataKeyReusePeriodSeconds,
             }
           : {}),
         ...(visibilityTimeout !== undefined
           ? {
-              VisibilityTimeout: visibilityTimeout
+              VisibilityTimeout: visibilityTimeout,
             }
           : {}),
-        ...pascalCaseAllKeys(mainQueueOverride)
-      }
+        ...pascalCaseAllKeys(mainQueueOverride),
+      },
     });
   }
 
@@ -535,7 +486,7 @@ Usage
    * @param {{name, prefix, topicArn}} config including name of the queue, the
    *  resource prefix and the arn of the topic
    */
-  addEventQueuePolicy(template, { name, prefix, topicArn }: Config) {
+  addEventQueuePolicy(template, { name, prefix, topicArn }) {
     addResource(template, `${name}QueuePolicy`, {
       Type: "AWS::SQS::QueuePolicy",
       Properties: {
@@ -549,12 +500,12 @@ Usage
               Principal: { Service: "sns.amazonaws.com" },
               Action: "SQS:SendMessage",
               Resource: { "Fn::GetAtt": [`${name}Queue`, "Arn"] },
-              Condition: { ArnEquals: { "aws:SourceArn": [topicArn] } }
-            }
-          ]
+              Condition: { ArnEquals: { "aws:SourceArn": [topicArn] } },
+            },
+          ],
         },
-        Queues: [{ Ref: `${name}Queue` }]
-      }
+        Queues: [{ Ref: `${name}Queue` }],
+      },
     });
   }
 
@@ -567,13 +518,7 @@ Usage
    */
   addTopicSubscription(
     template,
-    {
-      name,
-      topicArn,
-      filterPolicy,
-      rawMessageDelivery,
-      subscriptionOverride
-    }: Config
+    { name, topicArn, filterPolicy, rawMessageDelivery, subscriptionOverride }
   ) {
     addResource(template, `Subscribe${name}Topic`, {
       Type: "AWS::SNS::Subscription",
@@ -584,11 +529,11 @@ Usage
         ...(filterPolicy ? { FilterPolicy: filterPolicy } : {}),
         ...(rawMessageDelivery !== undefined
           ? {
-              RawMessageDelivery: rawMessageDelivery
+              RawMessageDelivery: rawMessageDelivery,
             }
           : {}),
-        ...pascalCaseAllKeys(subscriptionOverride)
-      }
+        ...pascalCaseAllKeys(subscriptionOverride),
+      },
     });
   }
 
@@ -618,9 +563,9 @@ Usage
         Action: [
           "sqs:ReceiveMessage",
           "sqs:DeleteMessage",
-          "sqs:GetQueueAttributes"
+          "sqs:GetQueueAttributes",
         ],
-        Resource: queues
+        Resource: queues,
       }
     );
 
@@ -638,9 +583,11 @@ Usage
         {
           Effect: "Allow",
           Action: ["kms:Decrypt"],
-          Resource: resource
+          Resource: resource,
         }
       );
     }
   }
 }
+
+module.exports = ServerlessSnsSqsLambda;

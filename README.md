@@ -1,3 +1,11 @@
+Forked from https://github.com/agiledigital/serverless-sns-sqs-lambda
+
+What have been changed from original repo:
+
+1. Convert to JS and structure simplification.
+2. Remove `name` properties and replace with `{FuncName}{TopicName}`.
+3. Remove `addLambdaSqsPermissions` function.
+
 # Serverless Sns Sqs Lambda
 
 [![serverless](http://public.serverless.com/badges/v3.svg)](http://www.serverless.com)
@@ -43,7 +51,7 @@ functions:
     handler: handler.handler
     events:
       - snsSqs:
-          name: TestEvent # Required - choose a name prefix for the event queue
+          # name: TestEvent # Required - choose a name prefix for the event queue
           topicArn: !Ref Topic # Required - SNS topic to subscribe to
           omitPhysicalId: true # Optional - default value is false but recommended to be set to true for new deployments (see below)
           batchSize: 2 # Optional - default value is 10
