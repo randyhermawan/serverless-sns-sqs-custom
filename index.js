@@ -244,7 +244,7 @@ class ServerlessSnsSqsLambda {
    *  portion of the serverless function config
    */
   validateConfig(funcName, stage, config) {
-    if (!config.topicArn || !config.name) {
+    if (!config.topicArn) {
       throw new Error(`Error:
 When creating an snsSqs handler, you must define topicArn.
 In function [${funcName}]:
